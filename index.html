@@ -1,0 +1,784 @@
+
+<title>Nova Lake-S iGPU Bring-Up</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: single centered reading column, application-note style; deliberately single light theme (blue headings, black body) per request */
+:root {
+  --paper: #ffffff;
+  --ink: #111418;
+  --muted: #4a5360;
+  --blue: #0b4f9c;
+  --blue-deep: #083a73;
+  --rule: #d6dde7;
+  --code-bg: #f2f5f9;
+  --out-bg: #fbfcfd;
+  --note-bg: #eef4fb;
+  --warn-bg: #fdf5e7;
+  --warn: #8a5300;
+  --ok-bg: #edf7f0;
+  --ok: #1f6b3a;
+  --sans: "IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+html { background: var(--paper); }
+body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.6; }
+.page { max-width: 880px; margin: 0 auto; padding-block: 40px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.mast { border-top: 6px solid var(--blue); padding-top: 18px; margin-bottom: 24px; }
+.mast-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--blue); font-weight: 600; }
+.rev { color: var(--muted); font-weight: 500; }
+h1 { color: var(--blue); font-size: 32px; line-height: 1.2; margin: 14px 0 8px; font-weight: 700; text-wrap: balance; }
+.sub { color: var(--ink); margin: 0; font-size: 17px; }
+.abstract { border-left: 3px solid var(--blue); padding: 4px 0 4px 16px; margin: 20px 0 28px; }
+.abstract p { margin: 0; }
+h2 { color: var(--blue); font-size: 23px; margin: 52px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--rule); display: flex; gap: 12px; align-items: baseline; text-wrap: balance; scroll-margin-top: 16px; }
+h2 .num { font-size: 15px; font-weight: 600; color: #fff; background: var(--blue); border-radius: 3px; padding: 1px 8px; font-variant-numeric: tabular-nums; flex: none; }
+h3 { color: var(--blue); font-size: 18px; margin: 30px 0 8px; font-weight: 600; scroll-margin-top: 16px; }
+p { margin: 10px 0; max-width: 72ch; }
+ul, ol { padding-left: 22px; max-width: 72ch; }
+li { margin: 4px 0; }
+a { color: var(--blue); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+code.inl { font-family: var(--mono); font-size: .88em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+kbd { font-family: var(--mono); font-size: .85em; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: var(--paper); }
+.toc { border: 1px solid var(--rule); border-radius: 4px; padding: 14px 20px; margin: 24px 0; background: var(--out-bg); }
+.toc-title { color: var(--blue); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; font-size: 13px; margin-bottom: 6px; }
+.toc ol { columns: 2; column-gap: 32px; margin: 0; padding-left: 20px; }
+.toc li { break-inside: avoid; margin: 2px 0; }
+.toc ol { list-style: none; counter-reset: t -1; padding-left: 0; }
+.toc li { counter-increment: t; }
+.toc li::before { content: counter(t) "."; color: var(--blue); font-variant-numeric: tabular-nums; display: inline-block; width: 2em; }
+.toc li:last-child::before { content: "A."; }
+.step { margin: 14px 0 4px; font-weight: 500; }
+.term { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--blue); border: 1px solid var(--blue); border-radius: 3px; padding: 0 6px; margin-right: 6px; }
+.cmd { display: flex; align-items: stretch; background: var(--code-bg); border: 1px solid var(--rule); border-radius: 4px; margin: 6px 0; }
+.cmd code { flex: 1; min-width: 0; font-family: var(--mono); font-size: 14px; color: var(--ink); padding: 9px 12px; white-space: pre; overflow-x: auto; }
+.copy { flex: none; display: inline-flex; align-items: center; gap: 5px; border: 0; border-left: 1px solid var(--rule); background: transparent; color: var(--blue); font: 500 13px var(--sans); padding: 0 12px; cursor: pointer; border-radius: 0 4px 4px 0; }
+.copy:hover { background: var(--note-bg); }
+.copy.done { color: var(--ok); }
+.out { border: 1px dashed var(--rule); border-radius: 4px; margin: 4px 0 14px; background: var(--out-bg); }
+.out-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding: 6px 12px 0; }
+.out pre { margin: 0; padding: 4px 12px 9px; font-family: var(--mono); font-size: 13px; color: var(--muted); overflow-x: auto; }
+.callout { border-radius: 4px; padding: 10px 14px; margin: 14px 0; font-size: 15px; background: var(--note-bg); max-width: 76ch; }
+.callout strong:first-child { color: var(--blue-deep); }
+.callout.warn { background: var(--warn-bg); }
+.callout.warn strong:first-child { color: var(--warn); }
+.callout.ok { background: var(--ok-bg); }
+.callout.ok strong:first-child { color: var(--ok); }
+.tbl { overflow-x: auto; margin: 12px 0 18px; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th { text-align: left; color: var(--blue); font-weight: 600; border-bottom: 2px solid var(--blue); padding: 6px 10px; white-space: nowrap; }
+td { border-bottom: 1px solid var(--rule); padding: 7px 10px; vertical-align: top; }
+table.num td { font-variant-numeric: tabular-nums; }
+.pass, .wait { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 1px 8px; border-radius: 3px; }
+.pass { background: var(--ok-bg); color: var(--ok); }
+.wait { background: var(--warn-bg); color: var(--warn); }
+ol.plain { padding-left: 22px; }
+.script { border: 1px solid var(--rule); border-radius: 4px; margin: 8px 0 28px; background: var(--code-bg); }
+.script-bar { display: flex; justify-content: space-between; align-items: stretch; border-bottom: 1px solid var(--rule); background: var(--note-bg); border-radius: 4px 4px 0 0; }
+.script-bar span { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--blue-deep); padding: 8px 12px; min-width: 0; overflow-wrap: anywhere; }
+.script pre { margin: 0; padding: 12px; overflow-x: auto; max-height: 560px; overflow-y: auto; }
+.script code { font-family: var(--mono); font-size: 13px; line-height: 1.5; color: var(--ink); white-space: pre; }
+.foot { margin-top: 48px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
+@media (max-width: 560px) {
+  h1 { font-size: 25px; }
+  h2 { font-size: 20px; }
+  .toc ol { columns: 1; }
+  .copy span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+<main class="page"><header class="mast">
+<div class="mast-row"><span class="docno">Application Note AN-NVL-001</span><span class="rev">Rev 1.0 · 31 October 2026</span></div>
+<h1>Enabling the Intel Nova Lake-S Integrated GPU on Ubuntu 24.04</h1>
+<p class="sub">Device <strong>8086:d740</strong> (PCI 00:02.0) · xe kernel driver · Dunlow platform</p>
+</header>
+<section class="abstract">
+<p>This note takes a freshly installed Ubuntu 24.04 system to a fully working Nova Lake-S integrated GPU. It moves up the stack one layer at a time: packages, firmware, a patched kernel, driver detection, power management, raw engine tests, the Mesa graphics stack, and finally a real OpenGL application. Every step was run and verified on host dunlow-ecnd-2-aug2026 between 28 and 31 October 2026.</p>
+</section>
+<h3>Results at a glance</h3>
+<div class="tbl"><table class=""><thead><tr><th>Layer</th><th>Result</th><th>Evidence</th></tr></thead><tbody>
+<tr><td>Kernel driver (xe)</td><td><span class='pass'>Pass</span></td><td>Driver bound to 00:02.0, GuC firmware loaded on GT0 and GT1</td></tr>
+<tr><td>Power management</td><td><span class='pass'>Pass</span></td><td>GT0 100–2400 MHz, GT1 200–1350 MHz, parks at 0 MHz when idle</td></tr>
+<tr><td>All 5 hardware engines</td><td><span class='pass'>Pass</span></td><td>rcs, ccs, bcs, vcs, vecs each held about 99% busy, no hangs</td></tr>
+<tr><td>Vulkan / OpenGL 4.6 / GLES 3.2</td><td><span class='pass'>Pass</span></td><td>Mesa 26.2.6 with INTEL_FORCE_PROBE=d740</td></tr>
+<tr><td>OpenGL application load</td><td><span class='pass'>Pass</span></td><td>4K off-screen render, rcs 99.8%, 23.55 FPS baseline</td></tr>
+<tr><td>VA-API video</td><td><span class='wait'>Waiting</span></td><td>intel-media-va-driver does not know d740 yet</td></tr>
+<tr><td>OpenCL compute</td><td><span class='wait'>Waiting</span></td><td>intel-opencl-icd does not know d740 yet</td></tr>
+</tbody></table></div>
+<nav class="toc"><div class="toc-title">Contents</div><ol><li><a href="#conv">How to use this note</a></li><li><a href="#s1">Install packages</a></li><li><a href="#s2">Stage the GPU firmware</a></li><li><a href="#s3">Build and install the patched kernel</a></li><li><a href="#s4">Verify the driver</a></li><li><a href="#s5">Check frequency and power management</a></li><li><a href="#s6">Build the Intel GPU test tools</a></li><li><a href="#s7">Load every GPU engine</a></li><li><a href="#s8">Enable the Mesa graphics stack</a></li><li><a href="#s9">Run a real OpenGL workload</a></li><li><a href="#s10">Not yet available: video and OpenCL</a></li><li><a href="#s11">Rollback and maintenance</a></li><li><a href="#s12">Troubleshooting</a></li><li><a href="#app">Appendix: scripts</a></li></ol></nav>
+<h2 id="conv"><span class="num">0</span>How to use this note</h2>
+<p>Each grey box holds exactly one command. Click the copy icon at its right end, paste it into your terminal, press Enter, and compare what you see with the <em>Expected</em> box underneath before moving on.</p>
+<ul>
+<li>Run everything as <strong>root</strong>. Start each terminal session with <code class='inl'>sudo -i</code>; the prompt then ends in <code class='inl'>#</code>.</li>
+<li>Commands are written so they paste cleanly: one line each, no <code class='inl'>$</code> variables, no tabs, no line-continuation backslashes.</li>
+<li>Run the helper scripts with <code class='inl'>bash scriptname.sh</code>, never with <code class='inl'>source</code>. A script that stops early would otherwise close your terminal.</li>
+<li>Keep all work under <code class='inl'>/root/nvl</code>. <code class='inl'>/tmp</code> is wiped at every reboot.</li>
+<li>Several steps use <strong>two terminals</strong>: one runs a workload, the other watches it with <code class='inl'>gputop</code>. In MobaXterm, open a second tab to the same host.</li>
+</ul>
+<div class="callout note"><strong>Note.</strong> On this platform the ASPEED BMC display chip is <code class='inl'>card0</code> and the Intel iGPU is <code class='inl'>card1</code>. On a board without a BMC display, the iGPU may be <code class='inl'>card0</code>; replace card1 with card0 throughout if so. Check with <code class='inl'>ls -l /dev/dri/by-path/</code> after Section 4.</div>
+<h2 id="s1"><span class="num">1</span>Install packages</h2>
+<p>A standard Ubuntu 24.04 install has none of the build tools or graphics packages this note needs. This section installs all of them at once, including two package archives (PPAs): one for the gcc-15 compiler and one for a Mesa graphics stack new enough to know Nova Lake.</p>
+<p class="step">Become root.</p>
+<div class="cmd"><code>sudo -i</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<p>If your network needs a proxy, set it first. Replace the host and port with your own; skip both lines if you have direct internet access.</p>
+<div class="cmd"><code>export http_proxy=http://proxy-host.example.com:912</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>export https_proxy=http://proxy-host.example.com:912</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<p class="step">Refresh the package lists.</p>
+<div class="cmd"><code>apt update</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<p class="step">Install the tool that adds package archives.</p>
+<div class="cmd"><code>apt install -y software-properties-common</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<p class="step">Add the archive that provides gcc-15.</p>
+<div class="cmd"><code>add-apt-repository -y ppa:ubuntu-toolchain-r/test</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<p class="step">Add the archive that provides current Mesa (Vulkan/OpenGL drivers).</p>
+<div class="cmd"><code>add-apt-repository -y ppa:kisak/kisak-mesa</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>apt update</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<h3>1.1 Kernel build tools</h3>
+<div class="cmd"><code>apt install -y build-essential gcc-15 flex bison bc libssl-dev libelf-dev libdw-dev zstd xz-utils wget git pciutils</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<h3>1.2 GPU test-tool build dependencies</h3>
+<div class="cmd"><code>apt install -y meson ninja-build pkg-config libdrm-dev libkmod-dev libproc2-dev libudev-dev libunwind-dev libpixman-1-dev libcairo2-dev libpciaccess-dev libjson-c-dev libpci-dev</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<h3>1.3 Graphics stack and diagnostic tools</h3>
+<div class="cmd"><code>apt install -y mesa-vulkan-drivers libgl1-mesa-dri libegl-mesa0 libegl1 libgl1 libgbm1 vulkan-tools mesa-utils intel-gpu-tools clinfo vainfo</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<h3>1.4 Python graphics library</h3>
+<div class="cmd"><code>apt install -y python3-pip</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>pip install --break-system-packages moderngl</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<h3>1.5 Check what was installed</h3>
+<div class="cmd"><code>gcc-15 --version</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>gcc-15 (Ubuntu 15.x ...) 15.x.x</pre></div>
+<div class="cmd"><code>dpkg -l mesa-vulkan-drivers | tail -1</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>ii  mesa-vulkan-drivers:amd64 26.2.6~kisak1~n ...      (26.1 or newer is required)</pre></div>
+<p class="step">Create the persistent working folder.</p>
+<div class="cmd"><code>mkdir -p /root/nvl</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="callout note"><strong>Note.</strong> The Mesa archive also upgrades libdrm (2.4.125 to 2.4.134 in our run). This is expected and harmless.</div>
+<h2 id="s2"><span class="num">2</span>Stage the GPU firmware</h2>
+<p>The GPU's on-chip scheduler (GuC) and security controller (GSC) load firmware files at boot. Ubuntu 24.04 does not ship the Nova Lake files, so copy them from the upstream firmware repository.</p>
+<div class="cmd"><code>cd /root/nvl</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<p class="step">Download the firmware repository (a few minutes; about 1 GB).</p>
+<div class="cmd"><code>git clone --depth 1 https://gitlab.com/kernel-firmware/linux-firmware.git</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>ls /root/nvl/linux-firmware/xe/ | grep nvl</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>nvl_gsc_1.bin
+nvl_guc_70.bin</pre></div>
+<div class="cmd"><code>mkdir -p /lib/firmware/xe</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>cp /root/nvl/linux-firmware/xe/nvl_guc_70.bin /lib/firmware/xe/</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>cp /root/nvl/linux-firmware/xe/nvl_gsc_1.bin /lib/firmware/xe/</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>ls -l /lib/firmware/xe/ | grep nvl</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>-rw-r--r-- 1 root root ... nvl_gsc_1.bin
+-rw-r--r-- 1 root root ... nvl_guc_70.bin</pre></div>
+<h2 id="s3"><span class="num">3</span>Build and install the patched kernel</h2>
+<p>Two things stop the stock xe driver from using this GPU, and both must be fixed:</p>
+<ol class='plain'><li><strong>Force-probe gate.</strong> d740 is marked as not yet officially supported. We build the kernel with <code class='inl'>DRM_XE_FORCE_PROBE="d740"</code>.</li><li><strong>Missing GuC firmware entry.</strong> The driver has no line telling it which firmware Nova Lake-S needs, so it fails with <code class='inl'>No GuC firmware defined for platform</code>. We add that line.</li></ol>
+<p>A full kernel build is required. Building only the xe module against Ubuntu's headers fails to load with an <code class='inl'>Invalid relocation target</code> error.</p>
+<h3>3.1 Confirm Secure Boot is off</h3>
+<div class="cmd"><code>mokutil --sb-state</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>SecureBoot disabled</pre></div>
+<div class="callout warn"><strong>Caution.</strong> The self-built kernel is unsigned. If Secure Boot is enabled, turn it off in the BIOS setup before continuing.</div>
+<h3>3.2 Get the kernel source</h3>
+<div class="cmd"><code>cd /root/nvl</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>wget https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.2.6.tar.xz</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>tar xf linux-7.2.6.tar.xz</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>cd /root/nvl/linux-7.2.6</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<h3>3.3 Add the Nova Lake-S GuC firmware line</h3>
+<p>This one-line Python command inserts the new entry into <code class='inl'>drivers/gpu/drm/xe/xe_uc_fw.c</code> directly above the Panther Lake entry. It refuses to run twice.</p>
+<div class="cmd"><code>python3 -c &quot;p=&#x27;drivers/gpu/drm/xe/xe_uc_fw.c&#x27;;s=open(p).read();n=&#x27;fw_def(NOVALAKE_S, GT_TYPE_ANY, major_ver(xe, guc, nvl, 70, 71, 0))&#x27;;assert n not in s,&#x27;already patched&#x27;;i=s.index(&#x27;fw_def(PANTHERLAKE&#x27;);b=s.rfind(chr(10),0,i)+1;s=s[:b]+chr(9)+n+&#x27; &#x27;+chr(92)+chr(10)+s[b:];open(p,&#x27;w&#x27;).write(s);print(&#x27;patched&#x27;)&quot;</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>patched</pre></div>
+<div class="cmd"><code>grep -n -A1 NOVALAKE_S drivers/gpu/drm/xe/xe_uc_fw.c</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>NNN:	fw_def(NOVALAKE_S, GT_TYPE_ANY, major_ver(xe, guc, nvl, 70, 71, 0)) \
+NNN+1-	fw_def(PANTHERLAKE, ...  guc, ptl, ...</pre></div>
+<div class="callout warn"><strong>Caution.</strong> <strong>Position matters.</strong> The firmware table is sorted newest platform first, and the lookup loop stops as soon as it passes a platform older than the GPU. Nova Lake-S (platform number 27) is newer than Panther Lake (26), so its line must sit <em>above</em> the Panther Lake line. Placed below, the kernel still compiles and <code class='inl'>modinfo</code> even lists the firmware, but the driver never finds it.</div>
+<h3>3.4 Configure</h3>
+<p>Start from the running Ubuntu kernel's configuration, then change only what this build needs.</p>
+<div class="cmd"><code>cp /boot/config-`uname -r` .config</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>scripts/config --disable SYSTEM_TRUSTED_KEYS</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>scripts/config --disable SYSTEM_REVOCATION_KEYS</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>scripts/config --disable DEBUG_INFO_BTF</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>scripts/config --disable DEBUG_INFO_DWARF5</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>scripts/config --enable DEBUG_INFO_NONE</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>scripts/config --disable LOCALVERSION_AUTO</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>scripts/config --set-str LOCALVERSION -novalake</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>scripts/config --set-str DRM_XE_FORCE_PROBE d740</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>make olddefconfig CC=gcc-15</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>grep -E &#x27;XE_FORCE_PROBE|CONFIG_LOCALVERSION=&#x27; .config</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>CONFIG_LOCALVERSION=&quot;-novalake&quot;
+CONFIG_DRM_XE_FORCE_PROBE=&quot;d740&quot;</pre></div>
+<h3>3.5 Build (30–90 minutes)</h3>
+<div class="cmd"><code>make -j`nproc` CC=gcc-15 HOSTCC=gcc-15</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>Kernel: arch/x86/boot/bzImage is ready  (#1)</pre></div>
+<div class="callout note"><strong>Note.</strong> Always pass <code class='inl'>CC=gcc-15</code>. Mixing compilers between the build and install steps produces modules that refuse to load.</div>
+<h3>3.6 Install</h3>
+<div class="cmd"><code>make modules_install CC=gcc-15</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>make install CC=gcc-15</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>update-initramfs -u -k 7.2.6-novalake</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="callout note"><strong>Note.</strong> If this reports that the initrd does not exist, run <code class='inl'>update-initramfs -c -k 7.2.6-novalake</code> instead.</div>
+<h3>3.7 Make it the default boot entry</h3>
+<div class="cmd"><code>echo GRUB_DEFAULT=saved &gt; /etc/default/grub.d/99-zz-novalake-default.cfg</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>update-grub</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>Found linux image: /boot/vmlinuz-7.2.6-novalake
+Found initrd image: /boot/initrd.img-7.2.6-novalake
+...
+done</pre></div>
+<div class="cmd"><code>grub-set-default `grep -o &#x27;gnulinux-7.2.6-novalake-advanced-[0-9a-f-]*&#x27; /boot/grub/grub.cfg | head -1`</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>grub-editenv list</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>saved_entry=gnulinux-7.2.6-novalake-advanced-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</pre></div>
+<div class="cmd"><code>reboot</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<h2 id="s4"><span class="num">4</span>Verify the driver</h2>
+<p>After the reboot, log in again and run <code class='inl'>sudo -i</code>. These checks confirm the kernel found the GPU and bound the xe driver to it. The same checks are bundled in <a href='#appA'>Appendix A</a>.</p>
+<div class="cmd"><code>uname -r</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>7.2.6-novalake</pre></div>
+<div class="cmd"><code>ls -l /dev/dri/</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>crw-rw---- 1 root video  226,   0 ... card0        (ASPEED BMC display)
+crw-rw---- 1 root video  226,   1 ... card1        (Intel iGPU)
+crw-rw---- 1 root render 226, 128 ... renderD128</pre></div>
+<div class="cmd"><code>cat /sys/class/drm/card1/device/device</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>0xd740</pre></div>
+<div class="cmd"><code>lspci -nnks 00:02.0 | grep -i &#x27;driver in use&#x27;</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>Kernel driver in use: xe</pre></div>
+<div class="cmd"><code>dmesg | grep -iE &#x27;novalake|GuC firmware&#x27;</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>xe 0000:00:02.0: [drm] Found novalake (device ID d740) integrated display version 35.00 stepping A0
+xe 0000:00:02.0: [drm] Tile0: GT0: Using GuC firmware from xe/nvl_guc_70.bin version 70.72.1
+xe 0000:00:02.0: [drm] Tile0: GT1: Using GuC firmware from xe/nvl_guc_70.bin version 70.72.1</pre></div>
+<div class="callout warn"><strong>Caution.</strong> If <code class='inl'>dmesg</code> instead shows <code class='inl'>No GuC firmware defined for platform</code>, the patch line in step 3.3 is missing or in the wrong place.</div>
+<h2 id="s5"><span class="num">5</span>Check frequency and power management</h2>
+<p>The iGPU has two graphics tiles (GTs): <strong>GT0</strong> runs render, compute and copy work; <strong>GT1</strong> runs video work. The kernel exposes each GT's clock limits as plain files. All of these are bundled in <a href='#appB'>Appendix B</a>.</p>
+<div class="cmd"><code>ls /sys/class/drm/card1/device/tile0/</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>gt0  gt1</pre></div>
+<div class="cmd"><code>cat /sys/class/drm/card1/device/tile0/gt0/freq0/rp0_freq</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>2400</pre></div>
+<div class="cmd"><code>cat /sys/class/drm/card1/device/tile0/gt0/freq0/act_freq</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>0</pre></div>
+<div class="cmd"><code>cat /sys/class/drm/card1/device/tile0/gt1/freq0/rp0_freq</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>1350</pre></div>
+<div class="tbl"><table class="num"><thead><tr><th>File</th><th>Meaning</th><th>GT0 (MHz)</th><th>GT1 (MHz)</th></tr></thead><tbody>
+<tr><td><code class='inl'>rpn_freq</code></td><td>Hardware minimum</td><td>100</td><td>200</td></tr>
+<tr><td><code class='inl'>rpe_freq</code></td><td>Most efficient frequency</td><td>1200</td><td>450</td></tr>
+<tr><td><code class='inl'>min_freq</code></td><td>Driver's floor (set to RPe by default)</td><td>1200</td><td>450</td></tr>
+<tr><td><code class='inl'>rp0_freq</code> / <code class='inl'>rpa_freq</code></td><td>Maximum turbo</td><td>2400</td><td>1350</td></tr>
+<tr><td><code class='inl'>cur_freq</code></td><td>Frequency the driver is requesting</td><td>1200 idle</td><td>450 idle</td></tr>
+<tr><td><code class='inl'>act_freq</code></td><td>Frequency the hardware is actually running</td><td>0 idle · 2300 loaded</td><td>0 idle · 1350 loaded</td></tr>
+</tbody></table></div>
+<div class="callout ok"><strong>Check.</strong> <code class='inl'>act_freq = 0</code> while idle is correct. With no work queued, the driver parks the GT in a low-power state.</div>
+<h2 id="s6"><span class="num">6</span>Build the Intel GPU test tools</h2>
+<p>Ubuntu's packaged <code class='inl'>intel_gpu_top</code> cannot read xe-driver GPUs, and normal applications cannot drive d740 yet. Intel's own test suite, <strong>igt-gpu-tools</strong>, talks to the xe driver directly and includes <code class='inl'>gputop</code>, the live per-engine monitor used in the rest of this note.</p>
+<div class="cmd"><code>cd /root/nvl</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>git clone https://gitlab.freedesktop.org/drm/igt-gpu-tools.git</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>cd /root/nvl/igt-gpu-tools</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>CC=gcc-15 meson setup build -Dman=disabled -Ddocs=disabled</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>C compiler for the host machine: gcc-15 (gcc 15...)
+...
+Found ninja-1.11.1 at /usr/bin/ninja</pre></div>
+<p class="step">Compile (5–10 minutes).</p>
+<div class="cmd"><code>ninja -C build</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>[2150/2150] Generating docs/testplan/intel-ci-tests with a custom command</pre></div>
+<div class="callout note"><strong>Note.</strong> Lines saying <code class='inl'>iga64 assemblies not changed, reusing pre-compiled file</code> are normal.</div>
+<div class="cmd"><code>ls -l /root/nvl/igt-gpu-tools/build/tools/gputop /root/nvl/igt-gpu-tools/build/tests/xe_spin_batch /root/nvl/igt-gpu-tools/build/benchmarks/gem_wsim</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>-rwxr-xr-x ... build/benchmarks/gem_wsim
+-rwxr-xr-x ... build/tests/xe_spin_batch
+-rwxr-xr-x ... build/tools/gputop</pre></div>
+<div class="callout note"><strong>Note.</strong> The runnable programs live under <code class='inl'>build/</code>. The <code class='inl'>tools/gputop</code> folder and <code class='inl'>tools/gputop.c</code> next to it are source code and cannot be run.</div>
+<div class="callout note"><strong>Note.</strong> The newly built <code class='inl'>intel_gpu_top</code> refuses xe GPUs and tells you to use <code class='inl'>gputop</code>. That is expected.</div>
+<h2 id="s7"><span class="num">7</span>Load every GPU engine</h2>
+<h3>7.1 List the engines</h3>
+<div class="cmd"><code>/root/nvl/igt-gpu-tools/build/tests/xe_query --run-subtest query-engines --debug 2&gt;&amp;1 | grep &#x27;^engine&#x27;</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>engine 0: DRM_XE_ENGINE_CLASS_RENDER, engine instance: 0, gt: GT-0, tile: TILE-0
+engine 1: DRM_XE_ENGINE_CLASS_COPY, engine instance: 0, gt: GT-0, tile: TILE-0
+engine 2: DRM_XE_ENGINE_CLASS_COMPUTE, engine instance: 0, gt: GT-0, tile: TILE-0
+engine 3: DRM_XE_ENGINE_CLASS_VIDEO_DECODE, engine instance: 0, gt: GT-1, tile: TILE-0
+engine 4: DRM_XE_ENGINE_CLASS_VIDEO_ENHANCE, engine instance: 0, gt: GT-1, tile: TILE-0</pre></div>
+<div class="tbl"><table class=""><thead><tr><th>Engine</th><th>gputop column</th><th>GT</th><th>Purpose</th></tr></thead><tbody>
+<tr><td>Render</td><td>rcs</td><td>GT0</td><td>3D graphics</td></tr>
+<tr><td>Copy (blitter)</td><td>bcs</td><td>GT0</td><td>Memory copies</td></tr>
+<tr><td>Compute</td><td>ccs</td><td>GT0</td><td>Compute kernels</td></tr>
+<tr><td>Video decode</td><td>vcs</td><td>GT1</td><td>Video decode</td></tr>
+<tr><td>Video enhance</td><td>vecs</td><td>GT1</td><td>Video scaling and processing</td></tr>
+</tbody></table></div>
+<h3>7.2 Quick submit test on all engines</h3>
+<div class="cmd"><code>/root/nvl/igt-gpu-tools/build/tests/xe_spin_batch --run-subtest spin-basic-all</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>Opened device: /dev/dri/card1
+Starting subtest: spin-basic-all
+Subtest spin-basic-all: SUCCESS (0.005s)</pre></div>
+<h3>7.3 Sustained load, one engine at a time</h3>
+<p>Copy the load script from <a href='#appC'>Appendix C</a> to <code class='inl'>/home/user/05-source-load-novalake-iGPU.sh</code>. It runs IGT's <code class='inl'>gem_wsim</code> workload generator on the chosen engine and reports peak frequency, idle time and any GPU hangs.</p>
+<p class="step"><span class='term'>Terminal 2</span> Start the live monitor and leave it running.</p>
+<div class="cmd"><code>/root/nvl/igt-gpu-tools/build/tools/gputop</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre> (No GPU clients yet. Start workload to see stats)</pre></div>
+<p class="step"><span class='term'>Terminal 1</span> Go to the scripts folder.</p>
+<div class="cmd"><code>cd /home/user</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<p class="step"><span class='term'>Terminal 1</span> Load the render engine for 30 seconds.</p>
+<div class="cmd"><code>bash 05-source-load-novalake-iGPU.sh render 30</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>bash 05-source-load-novalake-iGPU.sh compute 30</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>bash 05-source-load-novalake-iGPU.sh copy 30</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>bash 05-source-load-novalake-iGPU.sh video 30</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>bash 05-source-load-novalake-iGPU.sh enhance 30</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected in gputop (render run)</div><pre>DRM minor 1   Frequency(MHz) GT0-2400/2300 GT1-450/450
+  PID      MEM      RSS    rcs      vcs     vecs      bcs      ccs    NAME
+23818      64K      64K | 99.4% ||  0.0% ||  0.0% ||  0.0% ||  0.0% | gem_wsim</pre></div>
+<h3>7.4 All engines at once</h3>
+<div class="cmd"><code>bash 05-source-load-novalake-iGPU.sh all 30</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected in gputop (columns condensed)</div><pre>DRM minor 1   Frequency(MHz) GT0-2400/2300 GT1-1350/1350
+  PID   rcs     vcs     vecs    bcs     ccs     NAME
+25084   0.0%   99.4%    0.0%    0.0%    0.0%   gem_wsim
+25081  79.4%    0.0%    0.0%    0.0%    0.0%   gem_wsim
+25082   0.0%    0.0%    0.0%    0.0%   20.1%   gem_wsim
+25083   0.0%    0.0%    0.0%   99.4%    0.0%   gem_wsim
+25085   0.0%    0.0%   99.4%    0.0%    0.0%   gem_wsim</pre></div>
+<div class="callout note"><strong>Note.</strong> Render and compute share the same shader cores, so when both are loaded they take turns and their percentages add up to about 100% (here 79% + 20%). Once the render job finished, compute rose to 99.4%. This is expected behavior.</div>
+<h3>7.5 Measured results</h3>
+<div class="tbl"><table class="num"><thead><tr><th>Engine</th><th>Busy</th><th>GT clock under load</th><th>Hangs</th></tr></thead><tbody>
+<tr><td>Render (rcs)</td><td>99.4%</td><td>GT0 2300 MHz</td><td>None</td></tr>
+<tr><td>Compute (ccs)</td><td>99.4%</td><td>GT0 2300 MHz</td><td>None</td></tr>
+<tr><td>Copy (bcs)</td><td>100%</td><td>GT0 2300 MHz</td><td>None</td></tr>
+<tr><td>Video decode (vcs)</td><td>99.4%</td><td>GT1 1350 MHz</td><td>None</td></tr>
+<tr><td>Video enhance (vecs)</td><td>99.4%</td><td>GT1 1350 MHz</td><td>None</td></tr>
+</tbody></table></div>
+<h2 id="s8"><span class="num">8</span>Enable the Mesa graphics stack</h2>
+<p>Mesa provides the Vulkan (ANV) and OpenGL (iris) drivers. Ubuntu's own Mesa 25.2.8 rejects this GPU with <code class='inl'>Driver does not support the 0xd740 PCI ID</code>. Mesa 26.1 and later include Nova Lake support behind a force-probe switch, which is set per command with the <code class='inl'>INTEL_FORCE_PROBE=d740</code> environment variable. Section 1 already installed Mesa 26.x.</p>
+<p class="step">Stop MobaXterm's X11 forwarding for this terminal, otherwise vulkaninfo aborts trying to open a window on your laptop.</p>
+<div class="cmd"><code>unset DISPLAY</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>INTEL_FORCE_PROBE=d740 vulkaninfo --summary 2&gt;&amp;1 | grep -iE &#x27;deviceName|deviceType|deviceID|driverName|driverInfo&#x27;</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>        deviceID           = 0xd740
+        deviceType         = PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU
+        deviceName         = Intel(R) Graphics (NVL-S)
+        driverName         = Intel open-source Mesa driver
+        driverInfo         = Mesa 26.2.6 - kisak-mesa PPA
+        ...
+        deviceName         = llvmpipe (LLVM 21.1.8, 256 bits)</pre></div>
+<div class="cmd"><code>INTEL_FORCE_PROBE=d740 eglinfo -B 2&gt;&amp;1 | grep -iE &#x27;renderer|version&#x27;</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>OpenGL core profile renderer: Mesa Intel(R) Graphics (NVL-S)
+OpenGL core profile version: 4.6 (Core Profile) Mesa 26.2.6 - kisak-mesa PPA
+OpenGL ES profile renderer: Mesa Intel(R) Graphics (NVL-S)
+OpenGL ES profile version: OpenGL ES 3.2 Mesa 26.2.6 - kisak-mesa PPA</pre></div>
+<div class="callout note"><strong>Note.</strong> Two warnings from vulkaninfo are harmless: the <code class='inl'>libvulkan_dzn.so ... Skipping this driver</code> line (a Windows-only driver) and <code class='inl'>Unable to open device</code> (ANV also probes card0, the BMC display).</div>
+<p>Optional: to apply the force-probe switch to every program for every user, add it to the system environment. It takes effect at the next login.</p>
+<div class="cmd"><code>echo INTEL_FORCE_PROBE=d740 &gt;&gt; /etc/environment</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<h2 id="s9"><span class="num">9</span>Run a real OpenGL workload</h2>
+<p>This is the application-level test. <code class='inl'>gl_load_novalake.py</code> (<a href='#appD'>Appendix D</a>) opens a headless OpenGL context through Mesa, renders a heavy shader into an off-screen 3840×2160 image for 30 seconds, and reports frames per second. It sets the force-probe switch and clears <code class='inl'>DISPLAY</code> itself. Copy it to <code class='inl'>/home/user/gl_load_novalake.py</code>.</p>
+<p class="step"><span class='term'>Terminal 2</span> Start the monitor.</p>
+<div class="cmd"><code>/root/nvl/igt-gpu-tools/build/tools/gputop</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<p class="step"><span class='term'>Terminal 1</span></p>
+<div class="cmd"><code>cd /home/user</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<p class="step"><span class='term'>Terminal 1</span> Run the workload.</p>
+<div class="cmd"><code>python3 gl_load_novalake.py 30</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>GL_RENDERER : Mesa Intel(R) Graphics (NVL-S)
+GL_VERSION  : 4.6 (Core Profile) Mesa 26.2.6 - kisak-mesa PPA
+t=  1.0s  frames=    24  avg FPS=  23.21
+...
+t= 29.6s  frames=   696  avg FPS=  23.55
+ ** RESULT: 707 frames in 30.0 s = 23.55 FPS at 3840x2160</pre></div>
+<div class="out"><div class="out-label">Expected in gputop</div><pre>DRM minor 128   Frequency(MHz) GT0-2400/2300 GT1-1350/1350
+  PID      MEM      RSS    rcs      vcs     vecs      bcs      ccs    NAME
+33374      77M      77M | 99.8% ||  0.0% ||  0.0% ||  0.0% ||  0.0% | python3</pre></div>
+<p class="step">Check for GPU faults.</p>
+<div class="cmd"><code>dmesg | grep -iE &#x27;hang|reset|wedged&#x27; | grep -iE &#x27;xe|0000:00:02.0&#x27; | tail -5</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Expected</div><pre>(nothing printed)</pre></div>
+<div class="callout ok"><strong>Check.</strong> <strong>Baseline: 23.55 FPS at 3840×2160.</strong> Re-run this test after any kernel, Mesa, firmware or BIOS change. A clearly lower figure, or any output from the fault check, points to a regression. If GL_RENDERER shows <code class='inl'>llvmpipe</code>, the work ran on the CPU: recheck Section 8.</div>
+<p>gputop reports <code class='inl'>DRM minor 128</code> here because Mesa uses the render node <code class='inl'>renderD128</code>, while the IGT tests opened <code class='inl'>card1</code> (minor 1). Both are the same GPU.</p>
+<h2 id="s10"><span class="num">10</span>Not yet available: video and OpenCL</h2>
+<p>The hardware for both works (Section 7 loaded the video and compute engines directly). Only Intel's userspace libraries are missing d740 support. Retry these after newer packages are released.</p>
+<div class="cmd"><code>vainfo --display drm --device /dev/dri/renderD128</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Today</div><pre>vaInitialize failed with error code 18 (invalid parameter)</pre></div>
+<div class="cmd"><code>clinfo | grep -iE &#x27;Platform Name|Device Name&#x27;</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="out"><div class="out-label">Today</div><pre>(nothing printed: 0 OpenCL platforms)</pre></div>
+<div class="tbl"><table class=""><thead><tr><th>Feature</th><th>Package to watch</th><th>Hardware status</th></tr></thead><tbody>
+<tr><td>VA-API video decode/encode</td><td><code class='inl'>intel-media-va-driver</code></td><td>vcs and vecs engines verified at 99.4%</td></tr>
+<tr><td>OpenCL compute</td><td><code class='inl'>intel-opencl-icd</code> (compute-runtime)</td><td>ccs engine verified at 99.4%</td></tr>
+</tbody></table></div>
+<h2 id="s11"><span class="num">11</span>Rollback and maintenance</h2>
+<h3>11.1 Boot the stock Ubuntu kernel</h3>
+<p>One-time: at power-on hold <strong>Shift</strong> (or press <strong>Esc</strong>) to open the GRUB menu, choose <em>Advanced options for Ubuntu</em>, then the <code class='inl'>-generic</code> kernel. To make the stock kernel the default again:</p>
+<div class="cmd"><code>grub-set-default `grep -o &#x27;gnulinux-[0-9.-]*-generic-advanced-[0-9a-f-]*&#x27; /boot/grub/grub.cfg | head -1`</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>grub-editenv list</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<h3>11.2 Return to Ubuntu's own Mesa</h3>
+<div class="cmd"><code>apt install -y ppa-purge</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<div class="cmd"><code>ppa-purge -y ppa:kisak/kisak-mesa</code><button class="copy" type="button" aria-label="Copy command"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy</span></button></div>
+<h3>11.3 Long-term</h3>
+<ul><li><code class='inl'>7.2.6-novalake</code> is self-built and unsigned, so it receives no security updates. When a packaged kernel ships Nova Lake-S GuC support natively, move to it and remove this one. The firmware staged in Section 2 will already be in place.</li><li>Remove <code class='inl'>INTEL_FORCE_PROBE=d740</code> once Mesa enables d740 by default.</li><li>Source trees stay in <code class='inl'>/root/nvl</code> for rebuilds.</li></ul>
+<h2 id="s12"><span class="num">12</span>Troubleshooting</h2>
+<div class="tbl"><table class=""><thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead><tbody>
+<tr><td><code class='inl'>No GuC firmware defined for platform</code> in dmesg</td><td>Patch line missing or placed below Panther Lake</td><td>Redo step 3.3 on a fresh source tree, rebuild</td></tr>
+<tr><td><code class='inl'>Invalid relocation target ... R_X86_64_64</code></td><td>xe module built separately from its kernel</td><td>Build the full kernel (Section 3)</td></tr>
+<tr><td>Module load or build errors after mixing compilers</td><td>Default <code class='inl'>cc</code> differs from gcc-15</td><td>Pass <code class='inl'>CC=gcc-15</code> to every make, meson and install step</td></tr>
+<tr><td><code class='inl'>Driver does not support the 0xd740 PCI ID</code></td><td>Mesa older than 26.1, or force-probe not set</td><td>Check Mesa version (1.5) and prefix <code class='inl'>INTEL_FORCE_PROBE=d740</code></td></tr>
+<tr><td><code class='inl'>MoTTY X11 proxy: No authorisation provided</code></td><td>MobaXterm X11 forwarding</td><td>Run <code class='inl'>unset DISPLAY</code> first</td></tr>
+<tr><td><code class='inl'>Xe devices are not supported by intel_gpu_top</code></td><td>Expected with new IGT</td><td>Use <code class='inl'>gputop</code></td></tr>
+<tr><td>Terminal closes when a script stops</td><td>Script run with <code class='inl'>source</code></td><td>Run with <code class='inl'>bash</code></td></tr>
+<tr><td>Pasted command arrives with missing <code class='inl'>$</code> or tabs</td><td>Serial or BMC console mangles special characters</td><td>Use an SSH session; copy scripts as files (Appendix)</td></tr>
+<tr><td>Files vanish after reboot</td><td>Work kept in <code class='inl'>/tmp</code></td><td>Keep everything under <code class='inl'>/root/nvl</code> or <code class='inl'>/home/user</code></td></tr>
+</tbody></table></div>
+<h2 id="app"><span class="num">A</span>Appendix: scripts</h2>
+<p>Each script below has a <em>Copy file</em> button that copies the complete file exactly, with indentation intact. Two ways to put it on the server:</p>
+<ol class='plain'><li><strong>MobaXterm (recommended):</strong> paste into a local text editor, save with the name shown, then drag the file into MobaXterm's SFTP side panel, into <code class='inl'>/home/user</code>.</li><li><strong>nano on the server:</strong> run <code class='inl'>nano /home/user/&lt;name&gt;</code>, right-click to paste, then press <kbd>Ctrl</kbd>+<kbd>O</kbd>, <kbd>Enter</kbd>, <kbd>Ctrl</kbd>+<kbd>X</kbd>.</li></ol>
+<p>Check a copied file arrived intact with <code class='inl'>bash -n /home/user/&lt;name&gt;</code> (no output means the syntax is good) or, for the Python file, <code class='inl'>python3 -m py_compile /home/user/gl_load_novalake.py</code>.</p>
+<h3 id="appA">Appendix A. source-probe-novalake-iGPU.sh</h3>
+<p>Detection check (Section 4): kernel version, DRM device nodes, PCI device ID, bound driver, and the driver's own startup messages.</p>
+<p>Run it with: <code class='inl'>bash source-probe-novalake-iGPU.sh</code></p>
+<div class="script"><div class="script-bar"><span>source-probe-novalake-iGPU.sh</span><button class="copy" type="button" aria-label="Copy source-probe-novalake-iGPU.sh"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy file</span></button></div><pre><code>#!/bin/bash
+# source-probe-novalake-iGPU.sh
+# Detection check for the NovaLake-S iGPU (8086:d740, xe driver, card1)
+# Run as root:  bash source-probe-novalake-iGPU.sh
+
+echo &quot; ************************************************ &quot;
+echo &quot; ***** checking for iGPU in Dunlow NovaLake ***** &quot;
+echo &quot; ************************************************ &quot;
+
+echo &quot; ************************ &quot;
+echo &quot; *****   uname -r  ****** &quot;
+echo &quot; ************************ &quot;
+uname -r
+
+echo &quot; ********************* &quot;
+echo &quot; **** ls -l /dev/dri * &quot;
+echo &quot; ********************* &quot;
+ls -l /dev/dri/
+
+echo &quot; ************************************** &quot;
+echo &quot; cat /sys/class/drm/card1/device/device &quot;
+echo &quot; ************************************** &quot;
+cat /sys/class/drm/card1/device/device
+
+echo &quot; ****************************************** &quot;
+echo &quot; **  lspci -nnks 00:02.0 | grep -i &#x27;driver in use&#x27; &quot;
+echo &quot; ****************************************** &quot;
+lspci -nnks 00:02.0 | grep -i &#x27;driver in use&#x27;
+
+echo &quot; ****************************************** &quot;
+echo &quot; **  dmesg | grep -iE &#x27;novalake|GuC firmware&#x27; &quot;
+echo &quot; ****************************************** &quot;
+dmesg | grep -iE &#x27;novalake|GuC firmware&#x27; | tail -5
+</code></pre></div>
+<h3 id="appB">Appendix B. source-perf-novalake-iGPU.sh</h3>
+<p>Frequency and power view (Section 5): GT tiles, every GT0 and GT1 frequency file, and five live samples. It ends with the list of features to retry later.</p>
+<p>Run it with: <code class='inl'>bash source-perf-novalake-iGPU.sh</code></p>
+<div class="script"><div class="script-bar"><span>source-perf-novalake-iGPU.sh</span><button class="copy" type="button" aria-label="Copy source-perf-novalake-iGPU.sh"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy file</span></button></div><pre><code>#!/bin/bash
+# source-perf-novalake-iGPU.sh
+# Performance / frequency view of the NovaLake-S iGPU (8086:d740, xe driver, card1)
+# Run as root (or with sudo) on kernel 7.2.6-novalake.
+
+FREQ0=/sys/class/drm/card1/device/tile0/gt0/freq0
+FREQ1=/sys/class/drm/card1/device/tile0/gt1/freq0
+
+echo &quot; ********************************************************** &quot;
+echo &quot; ***** iGPU performance check - Dunlow NovaLake (xe) ****** &quot;
+echo &quot; ********************************************************** &quot;
+
+echo &quot; ************************ &quot;
+echo &quot; *****   uname -r  ****** &quot;
+echo &quot; ************************ &quot;
+uname -r
+
+echo &quot; ******************************************************* &quot;
+echo &quot; ** intel_gpu_top -L   (list GPUs the tool can see)   ** &quot;
+echo &quot; ******************************************************* &quot;
+intel_gpu_top -L
+
+echo &quot; ******************************************************* &quot;
+echo &quot; ** ls /sys/class/drm/card1/device/tile0/  (GT tiles) ** &quot;
+echo &quot; ******************************************************* &quot;
+ls /sys/class/drm/card1/device/tile0/
+
+echo &quot; ******************************************************************* &quot;
+echo &quot; ** ls /sys/class/drm/card1/device/tile0/gt0/freq0/  (freq files) ** &quot;
+echo &quot; ******************************************************************* &quot;
+ls $FREQ0/
+
+echo &quot; ********************************************************************* &quot;
+echo &quot; ** GT0 frequencies (MHz) - cat .../tile0/gt0/freq0/&lt;file&gt;          ** &quot;
+echo &quot; **   rp0 = max turbo, rpn = hw floor, cur = requested, act = actual ** &quot;
+echo &quot; **   act_freq = 0 when idle is NORMAL (GPU parked)                 ** &quot;
+echo &quot; ********************************************************************* &quot;
+for f in cur_freq act_freq min_freq max_freq rp0_freq rpe_freq rpa_freq rpn_freq; do
+    v=$(cat $FREQ0/$f 2&gt;/dev/null)
+    [ -n &quot;$v&quot; ] &amp;&amp; echo &quot;gt0 $f = $v MHz&quot;
+done
+
+echo &quot; ********************************************************************* &quot;
+echo &quot; ** GT1 frequencies (MHz) - cat .../tile0/gt1/freq0/&lt;file&gt;          ** &quot;
+echo &quot; ********************************************************************* &quot;
+for f in cur_freq act_freq min_freq max_freq rp0_freq rpe_freq rpa_freq rpn_freq; do
+    v=$(cat $FREQ1/$f 2&gt;/dev/null)
+    [ -n &quot;$v&quot; ] &amp;&amp; echo &quot;gt1 $f = $v MHz&quot;
+done
+
+echo &quot; ********************************************************************* &quot;
+echo &quot; ** Live sample: gt0 act_freq / cur_freq, 5 times, 1 sec apart      ** &quot;
+echo &quot; **   (poor-man&#x27;s intel_gpu_top until the real one supports xe)     ** &quot;
+echo &quot; ********************************************************************* &quot;
+for i in 1 2 3 4 5; do
+    echo &quot;sample $i : act_freq = $(cat $FREQ0/act_freq) MHz   cur_freq = $(cat $FREQ0/cur_freq) MHz&quot;
+    sleep 1
+done
+
+echo &quot;&quot;
+echo &quot; ##################################################################### &quot;
+echo &quot; ##  NOT WORKING YET on d740 (userspace lags pre-production HW).    ## &quot;
+echo &quot; ##  Try these again after newer packages / distro release:         ## &quot;
+echo &quot; ##################################################################### &quot;
+echo &quot; ## 1) intel_gpu_top (Ubuntu pkg) - &#x27;Failed to detect engines&#x27;.       &quot;
+echo &quot; ##    Newer IGT intel_gpu_top refuses xe entirely. For xe use the   &quot;
+echo &quot; ##    self-built gputop instead (works with load running):          &quot;
+echo &quot; ##      /root/nvl/igt-gpu-tools/build/tools/gputop                  &quot;
+echo &quot; ## 2) vainfo --display drm --device /dev/dri/renderD128              &quot;
+echo &quot; ##    today: vaInitialize fails err 18. Needs newer                  &quot;
+echo &quot; ##    intel-media-va-driver. GT1 DOES have 1 video decode (vcs) and  &quot;
+echo &quot; ##    1 video enhance (vecs) engine (xe_query confirmed), so this    &quot;
+echo &quot; ##    is purely a media-driver version lag.                          &quot;
+echo &quot; ## 3) clinfo | grep -iE &#x27;Platform Name|Device Name|Driver Version&#x27;   &quot;
+echo &quot; ##    today: 0 platforms. Needs newer intel-opencl-icd /             &quot;
+echo &quot; ##    compute-runtime.                                               &quot;
+echo &quot; ## 4) Mesa Vulkan / OpenGL - Ubuntu&#x27;s Mesa 25.2.8 says &#x27;Driver does  &quot;
+echo &quot; ##    not support the 0xd740 PCI ID&#x27;. WORKS with Mesa 26.2.6 from    &quot;
+echo &quot; ##    ppa:kisak/kisak-mesa plus force-probe:                         &quot;
+echo &quot; ##      INTEL_FORCE_PROBE=d740 vulkaninfo --summary   (unset DISPLAY)&quot;
+echo &quot; ##      INTEL_FORCE_PROBE=d740 eglinfo -B                            &quot;
+echo &quot; ##    Drop the variable once Mesa ships d740 enabled by default.     &quot;
+echo &quot; ##################################################################### &quot;
+</code></pre></div>
+<h3 id="appC">Appendix C. 05-source-load-novalake-iGPU.sh</h3>
+<p>Sustained engine load (Section 7). Requires the IGT build from Section 6.</p>
+<p>Run it with: <code class='inl'>bash 05-source-load-novalake-iGPU.sh render 30</code></p>
+<div class="script"><div class="script-bar"><span>05-source-load-novalake-iGPU.sh</span><button class="copy" type="button" aria-label="Copy 05-source-load-novalake-iGPU.sh"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy file</span></button></div><pre><code>#!/bin/bash
+# 05-source-load-novalake-iGPU.sh
+# Put sustained load on a chosen NovaLake-S iGPU engine (8086:d740, xe, card1)
+# and measure frequency / busy time.  Uses IGT&#x27;s gem_wsim workload generator.
+#
+# Usage (as root):  bash 05-source-load-novalake-iGPU.sh &lt;engine&gt; [seconds]
+#   engine : render | compute | copy | video | enhance | all     (default render)
+#   seconds: how long to load                                     (default 30)
+# Example:  bash 05-source-load-novalake-iGPU.sh compute 60
+#
+# Verified 2026-10-30 (gputop): render 99.4%, compute 99.4%, copy 100%,
+# video 99.4%, enhance 99.4%.  GT0 2300 MHz, GT1 1350 MHz under load.
+# In &#x27;all&#x27; mode render+compute share execution units (~80% / ~20% split).
+
+IGT=/root/nvl/igt-gpu-tools/build
+WSIM=$IGT/benchmarks/gem_wsim
+ENG=${1:-render}
+DUR=${2:-30}
+GT0=/sys/class/drm/card1/device/tile0/gt0
+GT1=/sys/class/drm/card1/device/tile0/gt1
+REPS=$((DUR*100))          # each job = 10 ms, so 100 jobs per second
+
+case $ENG in
+    render)  LIST=&quot;RCS&quot;  ;;
+    compute) LIST=&quot;CCS&quot;  ;;
+    copy)    LIST=&quot;BCS&quot;  ;;
+    video)   LIST=&quot;VCS&quot;  ;;
+    enhance) LIST=&quot;VECS&quot; ;;
+    all)     LIST=&quot;RCS CCS BCS VCS VECS&quot; ;;
+    *) echo &quot; !! engine must be: render compute copy video enhance all !!&quot;
+       return 1 2&gt;/dev/null || exit 1 ;;
+esac
+
+echo &quot; ********************************************************** &quot;
+echo &quot; ***** iGPU LOAD test - Dunlow NovaLake (xe)          ***** &quot;
+echo &quot; ***** engine: $ENG ($LIST)   duration: ${DUR}s &quot;
+echo &quot; ********************************************************** &quot;
+
+if [ ! -x $WSIM ]; then
+    echo &quot; !! $WSIM not found - build igt-gpu-tools first !!&quot;
+    return 1 2&gt;/dev/null || exit 1
+fi
+if [ &quot;$(id -u)&quot; != &quot;0&quot; ]; then
+    echo &quot; !! run as root (sudo -i) - GPU access and dmesg need it !!&quot;
+    return 1 2&gt;/dev/null || exit 1
+fi
+
+echo &quot; ********************************************************** &quot;
+echo &quot; ** Engines this GPU exposes (xe_query query-engines)    ** &quot;
+echo &quot; **   GT0: RENDER=rcs  COPY=bcs  COMPUTE=ccs             ** &quot;
+echo &quot; **   GT1: VIDEO_DECODE=vcs  VIDEO_ENHANCE=vecs          ** &quot;
+echo &quot; ********************************************************** &quot;
+$IGT/tests/xe_query --run-subtest query-engines --debug 2&gt;&amp;1 | grep -E &#x27;^engine&#x27;
+
+echo &quot; ********************************************************** &quot;
+echo &quot; ** BEFORE load: gt0 / gt1 act_freq and cur_freq (MHz)   ** &quot;
+echo &quot; ********************************************************** &quot;
+echo &quot;gt0 act=$(cat $GT0/freq0/act_freq)  cur=$(cat $GT0/freq0/cur_freq)&quot;
+echo &quot;gt1 act=$(cat $GT1/freq0/act_freq)  cur=$(cat $GT1/freq0/cur_freq)&quot;
+
+IDLE0_BEFORE=$(cat $GT0/gtidle/idle_residency_ms 2&gt;/dev/null)
+IDLE1_BEFORE=$(cat $GT1/gtidle/idle_residency_ms 2&gt;/dev/null)
+
+echo &quot; ********************************************************************* &quot;
+echo &quot; ** Starting load: gem_wsim, 10 ms jobs x $REPS on: $LIST &quot;
+echo &quot; **   command per engine:  gem_wsim -w &#x27;1.&lt;ENG&gt;.10000.0.1&#x27; -r $REPS &quot;
+echo &quot; ********************************************************************* &quot;
+PIDS=&quot;&quot;
+for e in $LIST; do
+    $WSIM -w &quot;1.$e.10000.0.1&quot; -r $REPS &gt; /tmp/wsim_$e.log 2&gt;&amp;1 &amp;
+    PIDS=&quot;$PIDS $!&quot;
+done
+
+echo &quot; ********************************************************************* &quot;
+echo &quot; ** DURING load: sample act/cur freq every 0.2 sec                  ** &quot;
+echo &quot; **   (one line per second; peak tracked on every sample)           ** &quot;
+echo &quot; ********************************************************************* &quot;
+PEAK0=0; PEAK1=0; TOTAL=0
+START=$SECONDS
+running() { for p in $PIDS; do kill -0 $p 2&gt;/dev/null &amp;&amp; return 0; done; return 1; }
+while running; do
+    a0=$(cat $GT0/freq0/act_freq); a1=$(cat $GT1/freq0/act_freq)
+    TOTAL=$((TOTAL+1))
+    [ &quot;$a0&quot; -gt &quot;$PEAK0&quot; ] &amp;&amp; PEAK0=$a0
+    [ &quot;$a1&quot; -gt &quot;$PEAK1&quot; ] &amp;&amp; PEAK1=$a1
+    if [ $((TOTAL % 5)) -eq 0 ]; then
+        echo &quot;t=$((SECONDS-START))s  gt0 act=$a0 cur=$(cat $GT0/freq0/cur_freq)   gt1 act=$a1 cur=$(cat $GT1/freq0/cur_freq)&quot;
+    fi
+    sleep 0.2
+done
+ELAPSED_MS=$(( (SECONDS-START)*1000 ))
+
+FAIL=0
+for p in $PIDS; do wait $p || FAIL=1; done
+
+IDLE0_AFTER=$(cat $GT0/gtidle/idle_residency_ms 2&gt;/dev/null)
+IDLE1_AFTER=$(cat $GT1/gtidle/idle_residency_ms 2&gt;/dev/null)
+
+echo &quot; ********************************************************** &quot;
+echo &quot; ** RESULTS                                              ** &quot;
+echo &quot; ********************************************************** &quot;
+if [ $FAIL -eq 0 ]; then
+    echo &quot;gem_wsim exit status        : OK (all engines finished their jobs)&quot;
+else
+    echo &quot;gem_wsim exit status        : FAILED - see logs below&quot;
+fi
+echo &quot;gt0 act_freq PEAK           : $PEAK0 MHz&quot;
+echo &quot;gt1 act_freq PEAK           : $PEAK1 MHz&quot;
+[ -n &quot;$IDLE0_BEFORE&quot; ] &amp;&amp; echo &quot;gt0 idle during load        : $((IDLE0_AFTER-IDLE0_BEFORE)) ms of $ELAPSED_MS ms&quot;
+[ -n &quot;$IDLE1_BEFORE&quot; ] &amp;&amp; echo &quot;gt1 idle during load        : $((IDLE1_AFTER-IDLE1_BEFORE)) ms of $ELAPSED_MS ms&quot;
+echo &quot;   (idle much lower than elapsed = that GT was busy)&quot;
+
+echo &quot; ********************************************************** &quot;
+echo &quot; ** gem_wsim output per engine (errors show up here)     ** &quot;
+echo &quot; ********************************************************** &quot;
+for e in $LIST; do
+    echo &quot;--- $e ---&quot;
+    tail -3 /tmp/wsim_$e.log
+done
+
+echo &quot; ********************************************************** &quot;
+echo &quot; ** AFTER load (2 sec settle): act_freq should be 0      ** &quot;
+echo &quot; ********************************************************** &quot;
+sleep 2
+echo &quot;gt0 act=$(cat $GT0/freq0/act_freq)  cur=$(cat $GT0/freq0/cur_freq)&quot;
+echo &quot;gt1 act=$(cat $GT1/freq0/act_freq)  cur=$(cat $GT1/freq0/cur_freq)&quot;
+
+echo &quot; ********************************************************** &quot;
+echo &quot; ** dmesg: GPU hang / reset check (empty = good)         ** &quot;
+echo &quot; ********************************************************** &quot;
+dmesg | grep -iE &#x27;hang|reset|wedged&#x27; | grep -iE &#x27;xe|0000:00:02.0&#x27; | tail -5
+
+echo &quot;&quot;
+echo &quot; ##################################################################### &quot;
+echo &quot; ##  TIP: in a SECOND terminal, run gputop while this script runs  ## &quot;
+echo &quot; ##  to see per-engine busy %  (rcs vcs vecs bcs ccs columns):     ## &quot;
+echo &quot; ##     $IGT/tools/gputop                                            &quot;
+echo &quot; ##  (intel_gpu_top does NOT support xe - it says use gputop)       ## &quot;
+echo &quot; ##################################################################### &quot;
+</code></pre></div>
+<h3 id="appD">Appendix D. gl_load_novalake.py</h3>
+<p>Headless 4K OpenGL workload through Mesa (Section 9). Requires Mesa 26.1+ and moderngl from Section 1.</p>
+<p>Run it with: <code class='inl'>python3 gl_load_novalake.py 30</code></p>
+<div class="script"><div class="script-bar"><span>gl_load_novalake.py</span><button class="copy" type="button" aria-label="Copy gl_load_novalake.py"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></svg><span>Copy file</span></button></div><pre><code>#!/usr/bin/env python3
+# gl_load_novalake.py - headless OpenGL load on the NovaLake-S iGPU via Mesa (iris)
+# Renders a heavy fragment shader into an off-screen 4K framebuffer for N seconds.
+# Usage:  python3 gl_load_novalake.py [seconds]      (default 30)
+import os, sys, time
+
+os.environ.setdefault(&quot;INTEL_FORCE_PROBE&quot;, &quot;d740&quot;)   # Mesa force-probe for d740
+os.environ.setdefault(&quot;EGL_PLATFORM&quot;, &quot;surfaceless&quot;) # no monitor / X needed
+os.environ.pop(&quot;DISPLAY&quot;, None)                      # ignore MobaXterm X11 forwarding
+
+import moderngl
+
+DUR = float(sys.argv[1]) if len(sys.argv) &gt; 1 else 30.0
+W, H = 3840, 2160
+
+print(&quot; ********************************************************** &quot;)
+print(&quot; ** Creating headless OpenGL context (EGL surfaceless)   ** &quot;)
+print(&quot; ********************************************************** &quot;)
+ctx = moderngl.create_context(standalone=True, backend=&quot;egl&quot;,
+                              libgl=&quot;libGL.so.1&quot;, libegl=&quot;libEGL.so.1&quot;)
+print(&quot;GL_RENDERER :&quot;, ctx.info[&quot;GL_RENDERER&quot;])
+print(&quot;GL_VERSION  :&quot;, ctx.info[&quot;GL_VERSION&quot;])
+if &quot;llvmpipe&quot; in ctx.info[&quot;GL_RENDERER&quot;].lower():
+    print(&quot; !! Running on llvmpipe (CPU), NOT the iGPU - check INTEL_FORCE_PROBE / Mesa !!&quot;)
+
+prog = ctx.program(
+    vertex_shader=&quot;&quot;&quot;
+        #version 330
+        in vec2 in_pos;
+        void main() { gl_Position = vec4(in_pos, 0.0, 1.0); }
+    &quot;&quot;&quot;,
+    fragment_shader=&quot;&quot;&quot;
+        #version 330
+        uniform float t;
+        out vec4 color;
+        void main() {
+            vec2 p = gl_FragCoord.xy * 0.001;
+            float v = 0.0;
+            for (int i = 0; i &lt; 200; i++) {          // heavy per-pixel math
+                v += sin(p.x * float(i) + t) * cos(p.y * float(i) - t);
+                p = p.yx * 1.0001 + 0.01;
+            }
+            color = vec4(fract(v), fract(v * 0.5), fract(v * 0.25), 1.0);
+        }
+    &quot;&quot;&quot;,
+)
+vbo = ctx.buffer(bytes(__import__(&quot;array&quot;).array(&quot;f&quot;, [-1, -1, 3, -1, -1, 3])))
+vao = ctx.simple_vertex_array(prog, vbo, &quot;in_pos&quot;)
+fbo = ctx.simple_framebuffer((W, H))
+fbo.use()
+
+print(&quot; ********************************************************** &quot;)
+print(f&quot; ** Rendering {W}x{H} frames for {DUR:.0f} s - watch gputop (rcs) ** &quot;)
+print(&quot; ********************************************************** &quot;)
+frames, start, last = 0, time.time(), time.time()
+while time.time() - start &lt; DUR:
+    prog[&quot;t&quot;].value = time.time() - start
+    vao.render()
+    ctx.finish()                       # wait for the GPU so timing is real
+    frames += 1
+    now = time.time()
+    if now - last &gt;= 1.0:
+        print(f&quot;t={now - start:5.1f}s  frames={frames:6d}  avg FPS={frames / (now - start):7.2f}&quot;)
+        last = now
+
+el = time.time() - start
+print(&quot; ********************************************************** &quot;)
+print(f&quot; ** RESULT: {frames} frames in {el:.1f} s = {frames / el:.2f} FPS at {W}x{H} &quot;)
+print(&quot; ********************************************************** &quot;)
+</code></pre></div>
+<footer class="foot">AN-NVL-001 Rev 1.0 · Nova Lake-S iGPU (8086:d740) on Ubuntu 24.04 · Verified on dunlow-ecnd-2-aug2026, kernel 7.2.6-novalake, Mesa 26.2.6, igt-gpu-tools 2.6</footer></main>
+<script>
+(function () {
+  function fallback(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+  function flash(btn, ok) {
+    var label = btn.querySelector('span'); var orig = label.textContent;
+    label.textContent = ok ? 'Copied' : 'Select and copy';
+    btn.classList.toggle('done', ok);
+    setTimeout(function () { label.textContent = orig; btn.classList.remove('done'); }, 1500);
+  }
+  function selectCode(code) {
+    var r = document.createRange(); r.selectNodeContents(code);
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  }
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.copy'); if (!btn) return;
+    var holder = btn.closest('.cmd, .script'); var code = holder.querySelector('code');
+    var text = code.textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { flash(btn, true); }, function () {
+        var ok = fallback(text); if (!ok) selectCode(code); flash(btn, ok);
+      });
+    } else { var ok = fallback(text); if (!ok) selectCode(code); flash(btn, ok); }
+  });
+})();
+</script>
